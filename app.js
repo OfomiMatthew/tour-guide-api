@@ -1,22 +1,51 @@
 const express = require("express");
 const fs = require("fs");
+const morgan = require("morgan");
 
 const app = express();
-app.use(express.json());
+
+// middlewares
+app.use(express.json()); // access to the request body
+
+app.use(morgan("combined"));
+
+app.use((req, res, next) => {
+  console.log("middleware activated");
+  next();
+});
+
+app.use((req, res, next) => {
+  req.requestTime = new Date().toISOString();
+  next();
+});
 
 const PORT = 6000;
 
+// route handlers
 const tours = JSON.parse(
   fs.readFileSync(`${__dirname}/devData/data/tours.json`)
 );
 
-// endpoint to get all tours
-app.get("/api/v1/tours/", (req, res) => {
+const getAllTours = (req, res) => {
+  console.log(req.requestTime);
   res.json({ status: "success", results: tours.length, data: { tours } });
-});
+};
 
-// endpoint to create new tours
-app.post("/api/v1/tours", (req, res) => {
+const getTour = (req, res) => {
+  console.log(req.params);
+  const id = req.params.id * 1;
+
+  if (id > tours.length) {
+    return res.json({
+      status: "fail",
+      message: "no ID detected",
+    });
+  }
+  const tour = tours.find((item) => item.id === id);
+  res.json({ data: tour });
+};
+
+const createTour = (req, res) => {
   const newId = tours[tours.length - 1].id + 1;
   const newTour = Object.assign({ id: newId }, req.body);
   tours.push(newTour);
@@ -32,43 +61,83 @@ app.post("/api/v1/tours", (req, res) => {
       });
     }
   );
-});
+};
 
-// get a tour
-app.get('/api/v1/tours/:id',(req,res)=>{
-  console.log(req.params)
-  const id = req.params.id * 1
+const updateTour = (req, res) => {
+  if (req.params.id * 1 > tours.length) {
+    res.status(404).json({ message: "no Id found" });
+  } else {
+    res.send("data updated");
+  }
+};
 
-  if(id > tours.length){
-    return res.json({
-      status:"fail",
-      "message":"no ID detected"
+const deleteTour = (req, res) => {
+  if (req.params.id * 1 > tours.length) {
+    res.status(204).json({ message: "no Id found" });
+  } else {
+    res.send("data deleted");
+  }
+};
+
+const getAllUsers = (req,res)=>{
+  res.status(500).json({
+    status:'error',
+    message:"no route yet"
+  })
+}
+
+const getUser = (req,res)=>{
+  res.status(500).json({
+    status:'error',
+    message:"no route yet"
+  })
+}
+
+const createUser = (req,res)=>{
+res.status(500).json({
+  status:"error",
+  message:"no route yet"
+})
+}
+
+const updateUser = (req,res)=>{
+  res.status(500).json({
+    status:"error",
+    message:"no route yet"
+  })
+  }
+
+const deleteUser = (req,res)=>{
+    res.status(500).json({
+      status:"error",
+      message:"no route yet"
     })
-  }
-  const tour = tours.find(item =>
-    item.id === id
-  )
-  res.json({data:tour})
-})
+    }
 
-// using patch to update data
-app.patch('/api/v1/tours/:id',(req,res)=>{
-  if(req.params.id*1 > tours.length){
-    res.status(404).json({message:"no Id found"})
-  }else{
-    res.send("data updated")
-  }
+// routes
+// endpoints for tours
 
-})
+app.use('api/v1/tours',tourRouter)
 
-app.delete('/api/v1/tours/:id',(req,res)=>{
-  if(req.params.id*1 > tours.length){
-    res.status(204).json({message:"no Id found"})
-  }else{
-    res.send("data deleted")
-  }
+const tourRouter = express.Router()
 
-})
+app.get("/api/v1/tours/:id", getTour);
+
+app.route("/api/v1/tours").get(getAllTours).post(createTour);
+
+tourRouter
+  .route("/api/v1/tours/:id")
+  .get(getTour)
+  .patch(updateTour)
+  .delete(deleteTour);
+
+  // endpoints for users
+app.route("/api/v1/users/").get(getAllUsers).post(createUser);
+app
+  .route("/api/v1/users/:id")
+  .get(getUser)
+  .patch(updateUser)
+  .delete(deleteUser);
 
 app.listen(PORT, () => {
   console.log(`listening to port ${PORT}`);
